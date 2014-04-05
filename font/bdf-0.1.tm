@@ -145,3 +145,58 @@ snit::type font::bdf {
             } else {
                 switch -regexp -matchvar M -- $line {
                     {^ENDCHAR\s*$} {
+                        break
+                    }
+
+                    {^ENCODING\s+(\d+)\s*$} {
+                        dict set char encoding [lindex $M 1]
+                    }
+                    {^ENCODING\s+-1\s+(\d+)\s*$} {
+                        dict set char encoding [list -1 [lindex $M 1]]
+                    }
+
+                    {^([SD]WIDTH1?)\s+(\d+)\s+(\d+)\s*$} {
+                        dict set char [string tolower [lindex $M 1]] [lrange $M 2 3]
+                    }
+
+                    {^BBX\s+(\d+)\s+(\d+)\s+(-?\d+)\s+(-?\d+)\s*$} {
+                        dict set char bbx [lrange $M 1 4]
+                        set hexDataRemains [lindex $M 2]
+                    }
+
+                    {^BITMAP\s*$} {
+                        set readBitmap 1
+                    }
+
+                    default {
+                        return -code error "invalid property, should be 'word integer' or 'word \"string\"' in \"$line\""
+                    }
+                }
+            }
+        }
+
+        set chars([dict get $char encoding]) $char
+
+        return
+    }
+}
+
+if {[info exists argv0] && [file tail [info script]] eq [file tail $argv0]} {
+    if {[llength $argv] == 1} {
+        font::bdf myfont [lindex $argv 0]
+
+        set w 0
+        foreach name [myfont properties] {
+            if {[string length $name] > $w} {
+                set w [string length $name]
+            }
+        }
+
+        foreach name [myfont properties] {
+            puts [format "%${w}s = %s" $name [myfont property $name]]
+        }
+
+        puts "\nchars in font: [llength [myfont chars]]"
+        puts "SPACE character: [myfont char 32]"
+    }
+}
